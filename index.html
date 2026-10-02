@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="application-name" content="Sports Pulse" />
+<meta name="description" content="Live football scores — Premier League, La Liga, Champions League, Serie A." />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<title>Sports Pulse</title>
+<style>
+  :root{
+    --bg:#04140a; --ink:#f0fdf4; --muted:#6b8f76;
+    --grn:#22c55e; --grn-soft:rgba(34,197,94,.14);
+    --card:#071f10; --line:rgba(34,197,94,.3);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{
+    background:radial-gradient(120% 90% at 50% 0%, #0a3a1c 0%, var(--bg) 65%);
+    color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex; align-items:center; justify-content:center; min-height:100dvh;
+    -webkit-font-smoothing:antialiased; -webkit-user-select:none; user-select:none;
+  }
+  .app{width:min(480px,100vw - 24px); height:100dvh; max-height:780px; display:flex; flex-direction:column; padding:14px 12px 10px}
+  header{flex:0 0 auto; text-align:center}
+  h1{font-size:19px; letter-spacing:.04em; color:var(--grn)}
+  #updated{color:var(--muted); font-size:11.5px; margin-top:2px}
+  nav{flex:0 0 auto; display:flex; gap:6px; margin:10px 0}
+  .tab{
+    flex:1; border-radius:10px; padding:10px 2px; font-size:13.5px; font-weight:800; cursor:pointer;
+    border:1px solid var(--line); background:transparent; color:var(--muted);
+  }
+  .tab.on{background:var(--grn); border-color:var(--grn); color:#03130a}
+  .tab:active{transform:scale(.96)}
+  #list{flex:1 1 auto; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-bottom:2px}
+  .m{
+    flex:0 0 auto; display:flex; align-items:center; gap:8px;
+    border:1px solid rgba(107,143,118,.22); border-radius:12px; background:var(--card); padding:8px 10px;
+  }
+  .m.live{border-color:var(--grn); background:linear-gradient(160deg, rgba(34,197,94,.16), rgba(34,197,94,.03))}
+  .t{flex:1; display:flex; align-items:center; gap:7px; font-size:14px; font-weight:800; min-width:0}
+  .t.r{justify-content:flex-end}
+  .t img{width:22px; height:22px; object-fit:contain}
+  .t span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .sc{flex:0 0 auto; font-size:16px; font-weight:900; font-variant-numeric:tabular-nums; min-width:52px; text-align:center}
+  .st{flex:0 0 auto; font-size:11.5px; color:var(--muted); min-width:64px; text-align:right; font-variant-numeric:tabular-nums}
+  .st.live{color:var(--grn); font-weight:800; animation:pulse 1.6s infinite}
+  .st.ft{color:var(--ink); font-weight:700}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .msg{flex:1 1 auto; display:flex; align-items:center; justify-content:center; text-align:center;
+    color:var(--muted); font-size:14px; line-height:1.7; border:1px dashed rgba(107,143,118,.35); border-radius:14px; padding:16px}
+  .retry{margin-top:10px; border:1px solid var(--line); background:var(--grn-soft); color:var(--grn);
+    border-radius:12px; padding:12px 22px; font-size:15px; font-weight:800; cursor:pointer}
+  .foot{flex:0 0 auto; text-align:center; color:var(--muted); font-size:10.5px; margin-top:8px}
+  button:focus-visible{outline:3px solid var(--grn); outline-offset:2px}
+</style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>⚽ Sports Pulse</h1>
+      <div id="updated">–</div>
+    </header>
+    <nav id="tabs"></nav>
+    <div id="list"></div>
+    <div class="foot">Live scores · auto-refreshes every minute</div>
+  </main>
+
+<script>
+(function(){
+"use strict";
+var LEAGUES = [
+  {id: "eng.1", name: "EPL"},
+  {id: "esp.1", name: "La Liga"},
+  {id: "uefa.champions", name: "UCL"},
+  {id: "ita.1", name: "Serie A"}
+];
+var cur = 0, timer = null;
+function $(id){ return document.getElementById(id); }
+
+function buildTabs(){
+  var nav = $("tabs"); nav.innerHTML = "";
+  LEAGUES.forEach(function(L, i){
+    var b = document.createElement("button");
+    b.className = "tab" + (i === cur ? " on" : "");
+    b.textContent = L.name;
+    b.setAttribute("data-focusable", "");
+    b.addEventListener("click", function(){ setLeague(i); });
+    nav.appendChild(b);
+  });
+}
+function setLeague(i){
+  if(i === cur && $("list").children.length) return;
+  cur = i; buildTabs(); load();
+}
+document.addEventListener("keydown", function(e){
+  if(e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  var ae = document.activeElement;
+  if(ae && ae.classList && ae.classList.contains("tab")){
+    e.preventDefault();
+    var d = e.key === "ArrowRight" ? 1 : -1;
+    var n = (cur + d + LEAGUES.length) % LEAGUES.length;
+    setLeague(n);
+    var tabs = document.querySelectorAll(".tab");
+    if(tabs[n]) tabs[n].focus();
+  }
+});
+
+function stateOf(e){
+  return e.competitions[0].status.type.state; // pre | in | post
+}
+function statusOf(e){
+  var s = e.competitions[0].status, st = s.type.state;
+  if(st === "in") return {t: "● " + (s.displayClock || "LIVE"), c: "live"};
+  if(st === "post") return {t: "FT", c: "ft"};
+  var d = new Date(e.date);
+  return {t: d.toLocaleDateString("en-GB", {weekday: "short"}) + " " +
+             d.toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"}), c: "pre"};
+}
+function teams(e){
+  var home = null, away = null;
+  e.competitions[0].competitors.forEach(function(c){
+    var t = {abbr: c.team.abbreviation || c.team.shortDisplayName,
+             logo: (c.team.logos && c.team.logos[0] && c.team.logos[0].href) || "",
+             score: c.score};
+    if(c.homeAway === "home") home = t; else away = t;
+  });
+  return {home: home, away: away};
+}
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];
+  });
+}
+
+function render(d){
+  var list = $("list"); list.innerHTML = "";
+  var evs = (d.events || []).slice();
+  var rank = {in: 0, pre: 1, post: 2};
+  evs.sort(function(a, b){
+    var ra = rank[stateOf(a)], rb = rank[stateOf(b)];
+    if(ra !== rb) return ra - rb;
+    return new Date(a.date) - new Date(b.date);
+  });
+  if(!evs.length){
+    list.innerHTML = '<div class="msg">No matches in this round.<br/>Check back on matchday.</div>';
+    return;
+  }
+  evs.forEach(function(e){
+    var tm = teams(e), st = statusOf(e);
+    var row = document.createElement("div");
+    row.className = "m" + (st.c === "live" ? " live" : "");
+    row.innerHTML =
+      '<div class="t">' + (tm.home.logo ? '<img src="' + esc(tm.home.logo) + '" alt="" loading="lazy"/>' : '') +
+        '<span>' + esc(tm.home.abbr) + '</span></div>' +
+      '<div class="sc">' + esc(tm.home.score) + ' - ' + esc(tm.away.score) + '</div>' +
+      '<div class="t r"><span>' + esc(tm.away.abbr) + '</span>' +
+        (tm.away.logo ? '<img src="' + esc(tm.away.logo) + '" alt="" loading="lazy"/>' : '') + '</div>' +
+      '<div class="st ' + st.c + '">' + esc(st.t) + '</div>';
+    list.appendChild(row);
+  });
+  var now = new Date();
+  $("updated").textContent = LEAGUES[cur].name + " · updated " +
+    now.toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"});
+}
+function showError(){
+  var list = $("list");
+  list.innerHTML = '<div class="msg">Couldn\'t reach the scores.<br/>Check your connection.</div>';
+  var b = document.createElement("button");
+  b.className = "retry"; b.textContent = "↻ Retry"; b.setAttribute("data-focusable", "");
+  b.addEventListener("click", load);
+  list.appendChild(b);
+  $("updated").textContent = LEAGUES[cur].name + " · offline";
+}
+function load(){
+  $("updated").textContent = LEAGUES[cur].name + " · loading…";
+  fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + LEAGUES[cur].id + "/scoreboard")
+    .then(function(r){ if(!r.ok) throw new Error("http " + r.status); return r.json(); })
+    .then(render)
+    .catch(showError);
+}
+buildTabs();
+load();
+if(timer) clearInterval(timer);
+timer = setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>
