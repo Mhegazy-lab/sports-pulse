@@ -1,0 +1,1 @@
+{"version":1,"name":"Sports Pulse","description":"Live football scores — Premier League, La Liga, Champions League, Serie A.","appearance":{"theme_color":"#22C55E","icon":{"src":"../icon-mono.png","type":"monochrome"},"icon_background":{"colors":["#22C55E","#15803D","#052E16","#04140A"],"stops":[0.0,0.33,0.66,1.0],"inner_glow_color":"#BBF7D0"}}}
